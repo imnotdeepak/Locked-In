@@ -8,10 +8,15 @@ interface Task {
   status: "do" | "doing" | "done";
 }
 
+interface AnimatedTask extends Task {
+  isAnimatingIn?: boolean;
+  isAnimatingOut?: boolean;
+}
+
 export default function KanbanBoard() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<AnimatedTask[]>([]);
   const [newTask, setNewTask] = useState("");
-  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const [draggedTask, setDraggedTask] = useState<AnimatedTask | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load tasks from localStorage on component mount
@@ -24,7 +29,13 @@ export default function KanbanBoard() {
         const parsedTasks = JSON.parse(savedTasks);
         if (Array.isArray(parsedTasks)) {
           console.log("KanbanBoard: Loading saved tasks:", parsedTasks);
-          setTasks(parsedTasks);
+          // Add animation state to loaded tasks
+          const animatedTasks = parsedTasks.map((task: Task) => ({
+            ...task,
+            isAnimatingIn: false,
+            isAnimatingOut: false,
+          }));
+          setTasks(animatedTasks);
         } else {
           console.log(
             "KanbanBoard: Saved data is not an array, setting defaults"
@@ -50,10 +61,28 @@ export default function KanbanBoard() {
 
   const setDefaultTasks = () => {
     console.log("KanbanBoard: Setting default tasks");
-    const defaultTasks: Task[] = [
-      { id: "1", text: "Plan project structure", status: "do" },
-      { id: "2", text: "Set up development environment", status: "doing" },
-      { id: "3", text: "Create initial design mockups", status: "done" },
+    const defaultTasks: AnimatedTask[] = [
+      {
+        id: "1",
+        text: "Plan project structure",
+        status: "do",
+        isAnimatingIn: false,
+        isAnimatingOut: false,
+      },
+      {
+        id: "2",
+        text: "Set up development environment",
+        status: "doing",
+        isAnimatingIn: false,
+        isAnimatingOut: false,
+      },
+      {
+        id: "3",
+        text: "Create initial design mockups",
+        status: "done",
+        isAnimatingIn: false,
+        isAnimatingOut: false,
+      },
     ];
     setTasks(defaultTasks);
     try {
@@ -68,8 +97,12 @@ export default function KanbanBoard() {
   useEffect(() => {
     if (isLoaded) {
       try {
-        console.log("KanbanBoard: Saving tasks to localStorage:", tasks);
-        localStorage.setItem("lockedInTasks", JSON.stringify(tasks));
+        // Save tasks without animation states
+        const tasksToSave = tasks.map(
+          ({ isAnimatingIn, isAnimatingOut, ...task }) => task
+        );
+        console.log("KanbanBoard: Saving tasks to localStorage:", tasksToSave);
+        localStorage.setItem("lockedInTasks", JSON.stringify(tasksToSave));
       } catch (error) {
         console.error("Error saving tasks to localStorage:", error);
       }
@@ -78,25 +111,46 @@ export default function KanbanBoard() {
 
   const addTask = () => {
     if (newTask.trim()) {
-      const task: Task = {
+      const task: AnimatedTask = {
         id: Date.now().toString(),
         text: newTask.trim(),
         status: "do",
+        isAnimatingIn: true,
+        isAnimatingOut: false,
       };
       setTasks([...tasks, task]);
       setNewTask("");
+
+      // Remove animation state after animation completes
+      setTimeout(() => {
+        setTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === task.id ? { ...t, isAnimatingIn: false } : t
+          )
+        );
+      }, 300);
     }
   };
 
   const deleteTask = (taskId: string) => {
-    setTasks(tasks.filter((task) => task.id !== taskId));
+    // Start fade-out animation
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === taskId ? { ...task, isAnimatingOut: true } : task
+      )
+    );
+
+    // Remove task after animation completes
+    setTimeout(() => {
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
+    }, 300);
   };
 
   const getTasksByStatus = (status: Task["status"]) => {
     return tasks.filter((task) => task.status === status);
   };
 
-  const handleDragStart = (e: React.DragEvent, task: Task) => {
+  const handleDragStart = (e: React.DragEvent, task: AnimatedTask) => {
     setDraggedTask(task);
     e.dataTransfer.effectAllowed = "move";
   };
@@ -106,14 +160,63 @@ export default function KanbanBoard() {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, status: Task["status"]) => {
+  const handleDrop = (
+    e: React.DragEvent,
+    status: Task["status"],
+    dropIndex?: number
+  ) => {
     e.preventDefault();
     if (draggedTask) {
-      setTasks(
-        tasks.map((task) =>
-          task.id === draggedTask.id ? { ...task, status } : task
-        )
-      );
+      if (draggedTask.status === status) {
+        // Reordering within the same column
+        const columnTasks = getTasksByStatus(status);
+        const draggedIndex = columnTasks.findIndex(
+          (task) => task.id === draggedTask.id
+        );
+
+        if (dropIndex !== undefined && draggedIndex !== dropIndex) {
+          // Remove the dragged task from its current position
+          const tasksWithoutDragged = tasks.filter(
+            (task) => task.id !== draggedTask.id
+          );
+
+          // Insert the dragged task at the new position
+          const newTasks = [...tasksWithoutDragged];
+          const insertIndex = tasksWithoutDragged.filter(
+            (task) => task.status === status
+          ).length;
+          const actualInsertIndex =
+            dropIndex > draggedIndex ? dropIndex - 1 : dropIndex;
+
+          let currentIndex = 0;
+          for (let i = 0; i < newTasks.length; i++) {
+            if (newTasks[i].status === status) {
+              if (currentIndex === actualInsertIndex) {
+                newTasks.splice(i, 0, draggedTask);
+                break;
+              }
+              currentIndex++;
+            }
+          }
+
+          // If we haven't inserted yet, add to the end of the column
+          if (currentIndex < actualInsertIndex) {
+            const lastColumnIndex = newTasks.findLastIndex(
+              (task) => task.status === status
+            );
+            newTasks.splice(lastColumnIndex + 1, 0, draggedTask);
+          }
+
+          setTasks(newTasks);
+        }
+      } else {
+        // Moving to a different column
+        setTasks(
+          tasks.map((task) =>
+            task.id === draggedTask.id ? { ...task, status } : task
+          )
+        );
+      }
       setDraggedTask(null);
     }
   };
@@ -159,29 +262,80 @@ export default function KanbanBoard() {
               {column.title}
             </h3>
             <div className="space-y-3">
-              {getTasksByStatus(column.id).map((task) => (
-                <div
-                  key={task.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, task)}
-                  className="bg-black border-2 border-[#080808] p-4 rounded-lg shadow-sm cursor-move hover:border-[#1c1c1c] transition-colors"
-                >
-                  <div className="flex justify-between items-start">
-                    <p className="text-white mb-3 flex-1 pr-2">{task.text}</p>
-                    <button
-                      onClick={() => deleteTask(task.id)}
-                      className="text-white hover:text-gray-300 transition-colors text-lg font-bold"
-                      title="Delete task"
-                    >
-                      ×
-                    </button>
+              {getTasksByStatus(column.id).map((task, index) => (
+                <div key={task.id}>
+                  {/* Drop zone above task */}
+                  <div
+                    className="h-2 -mb-1 bg-transparent hover:bg-white/10 transition-colors rounded"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, column.id, index)}
+                  />
+                  <div
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task)}
+                    className={`bg-black border-2 border-[#080808] p-4 rounded-lg shadow-sm cursor-move hover:border-[#1c1c1c] transition-all duration-300 ease-in-out ${
+                      task.isAnimatingIn
+                        ? "animate-fadeIn"
+                        : task.isAnimatingOut
+                        ? "animate-fadeOut"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <p className="text-white flex-1 pr-2 text-left break-all hyphens-auto">
+                        {task.text}
+                      </p>
+                      <button
+                        onClick={() => deleteTask(task.id)}
+                        className="text-white hover:text-gray-300 transition-colors text-lg font-bold flex-shrink-0"
+                        title="Delete task"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
+              {/* Drop zone at the end of column */}
+              <div
+                className="h-2 bg-transparent hover:bg-white/10 transition-colors rounded"
+                onDragOver={handleDragOver}
+                onDrop={(e) =>
+                  handleDrop(e, column.id, getTasksByStatus(column.id).length)
+                }
+              />
             </div>
           </div>
         ))}
       </div>
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes fadeOut {
+          from {
+            opacity: 1;
+          }
+          to {
+            opacity: 0;
+          }
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .animate-fadeOut {
+          animation: fadeOut 0.3s ease-in forwards;
+        }
+      `}</style>
     </div>
   );
 }
