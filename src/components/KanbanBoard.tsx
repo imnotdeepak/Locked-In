@@ -166,51 +166,37 @@ export default function KanbanBoard() {
     dropIndex?: number
   ) => {
     e.preventDefault();
+    console.log("Drop event:", { status, dropIndex, draggedTask });
+
     if (draggedTask) {
-      if (draggedTask.status === status) {
+      if (draggedTask.status === status && dropIndex !== undefined) {
         // Reordering within the same column
+        console.log("Reordering within same column");
         const columnTasks = getTasksByStatus(status);
         const draggedIndex = columnTasks.findIndex(
           (task) => task.id === draggedTask.id
         );
 
-        if (dropIndex !== undefined && draggedIndex !== dropIndex) {
-          // Remove the dragged task from its current position
-          const tasksWithoutDragged = tasks.filter(
-            (task) => task.id !== draggedTask.id
-          );
+        console.log("Column tasks:", columnTasks);
+        console.log("Dragged index:", draggedIndex, "Drop index:", dropIndex);
 
-          // Insert the dragged task at the new position
-          const newTasks = [...tasksWithoutDragged];
-          const insertIndex = tasksWithoutDragged.filter(
-            (task) => task.status === status
-          ).length;
-          const actualInsertIndex =
-            dropIndex > draggedIndex ? dropIndex - 1 : dropIndex;
+        if (draggedIndex !== dropIndex) {
+          // Create new array with reordered tasks
+          const newColumnTasks = [...columnTasks];
+          const [movedTask] = newColumnTasks.splice(draggedIndex, 1);
+          newColumnTasks.splice(dropIndex, 0, movedTask);
 
-          let currentIndex = 0;
-          for (let i = 0; i < newTasks.length; i++) {
-            if (newTasks[i].status === status) {
-              if (currentIndex === actualInsertIndex) {
-                newTasks.splice(i, 0, draggedTask);
-                break;
-              }
-              currentIndex++;
-            }
-          }
+          console.log("New column tasks:", newColumnTasks);
 
-          // If we haven't inserted yet, add to the end of the column
-          if (currentIndex < actualInsertIndex) {
-            const lastColumnIndex = newTasks.findLastIndex(
-              (task) => task.status === status
-            );
-            newTasks.splice(lastColumnIndex + 1, 0, draggedTask);
-          }
-
-          setTasks(newTasks);
+          // Update the main tasks array with the new order
+          const otherTasks = tasks.filter((task) => task.status !== status);
+          const reorderedTasks = [...otherTasks, ...newColumnTasks];
+          console.log("Final reordered tasks:", reorderedTasks);
+          setTasks(reorderedTasks);
         }
-      } else {
+      } else if (draggedTask.status !== status) {
         // Moving to a different column
+        console.log("Moving to different column");
         setTasks(
           tasks.map((task) =>
             task.id === draggedTask.id ? { ...task, status } : task
@@ -261,49 +247,39 @@ export default function KanbanBoard() {
             <h3 className="text-lg font-semibold mb-4 text-white border-b border-white pb-2">
               {column.title}
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-2 min-h-[200px]">
               {getTasksByStatus(column.id).map((task, index) => (
-                <div key={task.id}>
-                  {/* Drop zone above task */}
-                  <div
-                    className="h-2 -mb-1 bg-transparent hover:bg-white/10 transition-colors rounded"
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, column.id, index)}
-                  />
-                  <div
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, task)}
-                    className={`bg-black border-2 border-[#080808] p-4 rounded-lg shadow-sm cursor-move hover:border-[#1c1c1c] transition-all duration-300 ease-in-out ${
-                      task.isAnimatingIn
-                        ? "animate-fadeIn"
-                        : task.isAnimatingOut
-                        ? "animate-fadeOut"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <p className="text-white flex-1 pr-2 text-left break-all hyphens-auto">
-                        {task.text}
-                      </p>
-                      <button
-                        onClick={() => deleteTask(task.id)}
-                        className="text-white hover:text-gray-300 transition-colors text-lg font-bold flex-shrink-0"
-                        title="Delete task"
-                      >
-                        ×
-                      </button>
-                    </div>
+                <div
+                  key={task.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, task)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, column.id, index)}
+                  className={`bg-black border-2 border-[#080808] p-4 rounded-lg shadow-sm cursor-move hover:border-[#1c1c1c] transition-all duration-300 ease-in-out ${
+                    task.isAnimatingIn
+                      ? "animate-fadeIn"
+                      : task.isAnimatingOut
+                      ? "animate-fadeOut"
+                      : ""
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <p className="text-white flex-1 pr-2 text-left break-all hyphens-auto">
+                      {task.text}
+                    </p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteTask(task.id);
+                      }}
+                      className="text-white hover:text-gray-300 transition-colors text-lg font-bold flex-shrink-0"
+                      title="Delete task"
+                    >
+                      ×
+                    </button>
                   </div>
                 </div>
               ))}
-              {/* Drop zone at the end of column */}
-              <div
-                className="h-2 bg-transparent hover:bg-white/10 transition-colors rounded"
-                onDragOver={handleDragOver}
-                onDrop={(e) =>
-                  handleDrop(e, column.id, getTasksByStatus(column.id).length)
-                }
-              />
             </div>
           </div>
         ))}
