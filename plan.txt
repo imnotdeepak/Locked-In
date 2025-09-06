@@ -1,0 +1,7 @@
+next changes:
+
+For the Daily page:
+1. The habits were not lowered
+
+For the Goals Page:
+1. Can you make it so the user can type and then click short/long?
