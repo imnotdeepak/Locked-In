@@ -13,11 +13,9 @@ const LONG_KEY = "lockedInLongTermGoals";
 export default function GoalsPage() {
   const [shortTerm, setShortTerm] = useState<Goal[]>([]);
   const [longTerm, setLongTerm] = useState<Goal[]>([]);
-  const [newShort, setNewShort] = useState("");
-  const [newLong, setNewLong] = useState("");
+  const [inputText, setInputText] = useState("");
   const [activeList, setActiveList] = useState<"short" | "long" | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [pendingText, setPendingText] = useState("");
   const [dragged, setDragged] = useState<{
     list: "short" | "long";
     goal: Goal;
@@ -50,23 +48,20 @@ export default function GoalsPage() {
     } catch {}
   }, [longTerm, isLoaded]);
 
-  function addShort() {
-    const text = newShort.trim();
-    if (!text) return;
+  function addShort(text: string) {
     setShortTerm((prev) => [...prev, { id: Date.now().toString(), text }]);
-    setNewShort("");
   }
 
-  function addLong() {
-    const text = newLong.trim();
-    if (!text) return;
+  function addLong(text: string) {
     setLongTerm((prev) => [...prev, { id: Date.now().toString(), text }]);
-    setNewLong("");
   }
 
   function addActive() {
-    if (activeList === "short") addShort();
-    else addLong();
+    const text = inputText.trim();
+    if (!activeList || !text) return;
+    if (activeList === "short") addShort(text);
+    else addLong(text);
+    setInputText("");
   }
 
   function deleteGoal(list: "short" | "long", id: string) {
@@ -147,29 +142,23 @@ export default function GoalsPage() {
           <div className="flex items-center gap-2 w-full max-w-2xl">
             <input
               type="text"
-              value={
-                activeList === "short"
-                  ? newShort
-                  : activeList === "long"
-                  ? newLong
-                  : pendingText
-              }
+              value={inputText}
               onChange={(e) => {
                 const v = e.target.value;
-                if (activeList === "short") setNewShort(v);
-                else if (activeList === "long") setNewLong(v);
-                else setPendingText(v);
+                setInputText(v);
               }}
-              onKeyDown={(e) => activeList && e.key === "Enter" && addActive()}
+              onKeyDown={(e) =>
+                activeList &&
+                e.key === "Enter" &&
+                inputText.trim() &&
+                addActive()
+              }
               placeholder="Add a goal..."
               className="flex-1 px-4 py-2 border border-white rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent bg-black text-white placeholder-gray-400"
             />
             <div className="flex">
               <button
-                onClick={() => {
-                  setActiveList("short");
-                  if (pendingText) setNewShort(pendingText);
-                }}
+                onClick={() => setActiveList("short")}
                 className={`px-4 py-2 border border-white transition-colors rounded-l-lg ${
                   activeList === "short"
                     ? "bg-white text-black"
@@ -179,10 +168,7 @@ export default function GoalsPage() {
                 Short
               </button>
               <button
-                onClick={() => {
-                  setActiveList("long");
-                  if (pendingText) setNewLong(pendingText);
-                }}
+                onClick={() => setActiveList("long")}
                 className={`px-4 py-2 border border-white transition-colors -ml-px rounded-r-lg ${
                   activeList === "long"
                     ? "bg-white text-black"
@@ -194,9 +180,9 @@ export default function GoalsPage() {
             </div>
             <button
               onClick={addActive}
-              disabled={!activeList}
+              disabled={!activeList || !inputText.trim()}
               className={`px-6 py-2 rounded-lg transition-colors border border-white ${
-                activeList
+                activeList && inputText.trim()
                   ? "bg-white text-black hover:bg-black hover:text-white"
                   : "bg-transparent text-gray-500 cursor-not-allowed"
               }`}
