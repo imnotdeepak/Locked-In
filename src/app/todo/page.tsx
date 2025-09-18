@@ -1,9 +1,12 @@
-import KanbanBoard from "@/components/KanbanBoard";
+import KanbanBoardSupabase from "@/components/KanbanBoardSupabase";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function TodoPage() {
   return (
-    <div className="min-h-screen bg-black">
-      <KanbanBoard />
-    </div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-black">
+        <KanbanBoardSupabase />
+      </div>
+    </ProtectedRoute>
   );
 }
