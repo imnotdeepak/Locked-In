@@ -20,7 +20,6 @@ export default function GoalsSupabase() {
   const [longTerm, setLongTerm] = useState<AnimatedGoal[]>([]);
   const [inputText, setInputText] = useState("");
   const [activeList, setActiveList] = useState<"short" | "long" | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dragged, setDragged] = useState<{
     list: "short" | "long";
@@ -56,8 +55,8 @@ export default function GoalsSupabase() {
 
       // Separate short and long term goals
       const shortGoals = (data || [])
-        .filter((goal: any) => goal.type === "short")
-        .map((goal: any) => ({
+        .filter((goal: { type: string }) => goal.type === "short")
+        .map((goal: { id: string; text: string }) => ({
           id: goal.id,
           text: goal.text,
           isAnimatingIn: false,
@@ -65,8 +64,8 @@ export default function GoalsSupabase() {
         }));
 
       const longGoals = (data || [])
-        .filter((goal: any) => goal.type === "long")
-        .map((goal: any) => ({
+        .filter((goal: { type: string }) => goal.type === "long")
+        .map((goal: { id: string; text: string }) => ({
           id: goal.id,
           text: goal.text,
           isAnimatingIn: false,
@@ -79,14 +78,13 @@ export default function GoalsSupabase() {
       console.error("Error loading goals:", error);
     } finally {
       setLoading(false);
-      setIsLoaded(true);
     }
   };
 
-  const saveGoal = async (goal: Goal & { type: string }) => {
+  const saveGoal = async (goal: AnimatedGoal & { type: string }) => {
     try {
       // Remove animation properties before saving to database
-      const { isAnimatingIn, isAnimatingOut, ...goalData } = goal as any;
+      const { isAnimatingIn: _, isAnimatingOut: __, ...goalData } = goal;
 
       const { error } = await supabase.from("goals").insert([
         {

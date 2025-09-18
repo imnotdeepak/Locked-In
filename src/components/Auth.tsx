@@ -70,7 +70,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             );
             return;
           }
-        } catch (checkError) {
+        } catch (_checkError) {
           // If there's any error during the check, assume user exists
           setMessage(
             "An account with this email already exists. Please sign in instead."
@@ -79,7 +79,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         }
 
         // Try to sign up
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
         });
@@ -100,8 +100,10 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       }
 
       onAuthSuccess();
-    } catch (error: any) {
-      setMessage(error.message);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "An error occurred";
+      setMessage(errorMessage);
     } finally {
       setLoading(false);
     }

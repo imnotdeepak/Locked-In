@@ -20,7 +20,6 @@ export default function KanbanBoardSupabase() {
   const [tasks, setTasks] = useState<AnimatedTask[]>([]);
   const [newTask, setNewTask] = useState("");
   const [draggedTask, setDraggedTask] = useState<AnimatedTask | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Load tasks from Supabase on component mount
@@ -48,27 +47,28 @@ export default function KanbanBoardSupabase() {
       console.log("Loaded tasks from Supabase:", data);
 
       // Add animation state to loaded tasks
-      const animatedTasks = (data || []).map((task: any) => ({
-        id: task.id,
-        text: task.text,
-        status: task.status,
-        isAnimatingIn: false,
-        isAnimatingOut: false,
-      }));
+      const animatedTasks = (data || []).map(
+        (task: { id: string; text: string; status: string }) => ({
+          id: task.id,
+          text: task.text,
+          status: task.status as "do" | "doing" | "done",
+          isAnimatingIn: false,
+          isAnimatingOut: false,
+        })
+      );
 
       setTasks(animatedTasks);
     } catch (error) {
       console.error("Error loading tasks:", error);
     } finally {
       setLoading(false);
-      setIsLoaded(true);
     }
   };
 
-  const saveTask = async (task: Task) => {
+  const saveTask = async (task: AnimatedTask) => {
     try {
       // Remove animation properties before saving to database
-      const { isAnimatingIn, isAnimatingOut, ...taskData } = task as any;
+      const { isAnimatingIn: _, isAnimatingOut: __, ...taskData } = task;
 
       const { error } = await supabase.from("tasks").insert([
         {

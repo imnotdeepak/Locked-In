@@ -36,7 +36,6 @@ export default function DailySupabase() {
   const [resetTime, setResetTime] = useState<string>("08:00");
   const [lastResetAt, setLastResetAt] = useState<string>("");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Load habits from Supabase
@@ -66,13 +65,15 @@ export default function DailySupabase() {
       console.log("Loaded habits from Supabase:", data);
 
       // Add animation state to loaded habits
-      const animatedHabits = (data || []).map((habit: any) => ({
-        id: habit.id,
-        text: habit.text,
-        completed: habit.completed,
-        isAnimatingIn: false,
-        isAnimatingOut: false,
-      }));
+      const animatedHabits = (data || []).map(
+        (habit: { id: string; text: string; completed: boolean }) => ({
+          id: habit.id,
+          text: habit.text,
+          completed: habit.completed,
+          isAnimatingIn: false,
+          isAnimatingOut: false,
+        })
+      );
 
       setHabits(animatedHabits);
 
@@ -91,14 +92,13 @@ export default function DailySupabase() {
       console.error("Error loading habits:", error);
     } finally {
       setLoading(false);
-      setIsLoaded(true);
     }
   };
 
-  const saveHabit = async (habit: Habit) => {
+  const saveHabit = async (habit: AnimatedHabit) => {
     try {
       // Remove animation properties before saving to database
-      const { isAnimatingIn, isAnimatingOut, ...habitData } = habit as any;
+      const { isAnimatingIn: _, isAnimatingOut: __, ...habitData } = habit;
 
       const { error } = await supabase.from("daily_habits").insert([
         {

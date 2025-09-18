@@ -99,7 +99,7 @@ export default function KanbanBoard() {
       try {
         // Save tasks without animation states
         const tasksToSave = tasks.map(
-          ({ isAnimatingIn, isAnimatingOut, ...task }) => task
+          ({ isAnimatingIn: _, isAnimatingOut: __, ...task }) => task
         );
         console.log("KanbanBoard: Saving tasks to localStorage:", tasksToSave);
         localStorage.setItem("lockedInTasks", JSON.stringify(tasksToSave));
@@ -259,8 +259,8 @@ export default function KanbanBoard() {
                     task.isAnimatingIn
                       ? "animate-fadeIn"
                       : task.isAnimatingOut
-                      ? "animate-fadeOut"
-                      : ""
+                        ? "animate-fadeOut"
+                        : ""
                   }`}
                 >
                   <div className="flex justify-between items-center">
